@@ -74,10 +74,14 @@ if (process.env.NODE_ENV === 'development') {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Ensure uploads directory exists
-const uploadDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+// Ensure uploads directory exists safely
+const uploadDir = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(process.cwd(), 'uploads');
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn('Could not create upload directory:', err.message);
 }
 // Serve static uploads
 app.use('/uploads', express.static(uploadDir));
@@ -98,8 +102,14 @@ app.use('/api/notifications', notificationRoutes);
 
 // Base Route
 app.get('/', (req, res) => {
-  res.send('Manshu Finance System API is running...');
+  res.status(200).json({
+    success: true,
+    message: 'Manshu Finance System API is running successfully on Vercel!',
+    status: 'Healthy',
+    timestamp: new Date().toISOString()
+  });
 });
+
 
 // Central Error Handler
 app.use(errorHandler);

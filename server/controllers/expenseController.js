@@ -144,10 +144,12 @@ export const updateExpense = async (req, res) => {
     if (req.file) {
       // Remove old receipt file if it exists
       if (expense.receiptUrl) {
-        const oldPath = path.join(process.cwd(), expense.receiptUrl);
-        if (fs.existsSync(oldPath)) {
-          fs.unlinkSync(oldPath);
-        }
+        try {
+          const oldPath = path.join(process.env.VERCEL ? '/tmp' : process.cwd(), expense.receiptUrl);
+          if (fs.existsSync(oldPath)) {
+            fs.unlinkSync(oldPath);
+          }
+        } catch (err) {}
       }
       req.body.receiptUrl = `/uploads/${req.file.filename}`;
     }
@@ -186,11 +188,14 @@ export const deleteExpense = async (req, res) => {
 
     // Delete receipt file physically if exists
     if (expense.receiptUrl) {
-      const filePath = path.join(process.cwd(), expense.receiptUrl);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+      try {
+        const filePath = path.join(process.env.VERCEL ? '/tmp' : process.cwd(), expense.receiptUrl);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (err) {}
     }
+
 
     await Expense.findByIdAndDelete(req.params.id);
 
