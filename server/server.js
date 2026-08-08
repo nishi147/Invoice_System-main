@@ -31,21 +31,39 @@ import notificationRoutes from './routes/notificationRoutes.js';
 // Load Env
 dotenv.config();
 
-// Connect Database
-connectDB();
-
 const app = express();
 const server = http.createServer(app);
 
 // Initialize Socket.io
 initSocket(server, process.env.CLIENT_URL);
 
+// DB Connection Middleware
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('Database connection error:', err.message);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Database connection failed. Please check MONGO_URI in Vercel environment variables.' 
+    });
+  }
+});
+
 // Security Headers & CORS
 app.use(helmet({
   crossOriginResourcePolicy: false, // allow images/receipts to load in browser
 }));
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const clientUrl = process.env.CLIENT_URL;
+    if (!clientUrl || clientUrl === '*' || origin === clientUrl || origin.endsWith('.vercel.app') || origin.includes('localhost')) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
   credentials: true,
 }));
 
@@ -86,8 +104,12 @@ app.get('/', (req, res) => {
 // Central Error Handler
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 5000;
+  server.listen(PORT, () => {
+    console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  });
+}
 
-server.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-});
+export default app;
+
