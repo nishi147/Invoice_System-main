@@ -1,4 +1,5 @@
 import React from 'react';
+import Logo from './Logo.jsx';
 
 export const ClassicTemplate = ({ invoice, settings }) => {
   const clientInfo = invoice.clientDetailsSnapshot || invoice.client || {};
@@ -7,7 +8,9 @@ export const ClassicTemplate = ({ invoice, settings }) => {
       {/* Header */}
       <div className="flex justify-between border-b-2 border-slate-800 pb-4">
         <div>
-          <h2 className="text-2xl font-bold uppercase">{settings.name || 'Company Name'}</h2>
+          <div className="mb-2">
+            <Logo className="h-10 w-auto" />
+          </div>
           <p className="text-xs text-slate-600 mt-1">{settings.address?.street}, {settings.address?.city}, {settings.address?.state}</p>
           {settings.gstNumber && <p className="text-xs text-slate-600">GSTIN: {settings.gstNumber}</p>}
         </div>
@@ -118,8 +121,8 @@ export const ModernTemplate = ({ invoice, settings }) => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="font-outfit text-xl font-bold bg-gradient-to-r from-brand-600 to-indigo-600 bg-clip-text text-transparent">{settings.name || 'Company Name'}</span>
+          <div className="mb-2">
+            <Logo className="h-11 w-auto" />
           </div>
           <p className="text-xs text-slate-500 mt-2">{settings.address?.street}, {settings.address?.city}, {settings.address?.state}</p>
           <p className="text-xs text-slate-500">Email: {settings.email} | Phone: {settings.phone}</p>
@@ -242,7 +245,9 @@ export const CorporateTemplate = ({ invoice, settings }) => {
       {/* Top Banner */}
       <div className="bg-slate-950 text-white p-6 -mx-8 -mt-8 mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-bold tracking-wider uppercase">{settings.name || 'Enterprise Client'}</h1>
+          <div className="bg-white p-1.5 rounded-xl shadow-sm inline-block">
+            <Logo className="h-9 w-auto" />
+          </div>
           <p className="text-[10px] text-slate-400 mt-1">Corporate Billing Division</p>
         </div>
         <div className="text-right">
@@ -374,7 +379,9 @@ export const MinimalTemplate = ({ invoice, settings }) => {
       {/* Top Section */}
       <div className="flex justify-between items-start border-b border-slate-100 pb-6 mb-8">
         <div>
-          <h2 className="text-lg font-bold tracking-tight text-slate-900">{settings.name || 'Company Name'}</h2>
+          <div className="mb-2">
+            <Logo className="h-9 w-auto" />
+          </div>
           <p className="text-xs text-slate-400 mt-1">{settings.address?.city}, {settings.address?.country}</p>
         </div>
         <div className="text-right">

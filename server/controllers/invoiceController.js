@@ -380,9 +380,12 @@ export const downloadInvoicePDF = async (req, res) => {
 
     const pdfBuffer = await generateInvoicePDF(invoice, settings);
 
+    const safeFilename = (invoice.invoiceNumber || 'invoice').replace(/[^a-zA-Z0-9_-]/g, '_');
+
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=${invoice.invoiceNumber}.pdf`);
-    res.send(pdfBuffer);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}.pdf"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.status(200).send(pdfBuffer);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

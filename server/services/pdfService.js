@@ -1,5 +1,7 @@
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
+import fs from 'fs';
+import path from 'path';
 
 export const generateInvoicePDF = async (invoice, settings) => {
   return new Promise(async (resolve, reject) => {
@@ -81,16 +83,38 @@ export const generateInvoicePDF = async (invoice, settings) => {
         doc.roundedRect(50, 48, 4, 46, 2).fill(theme.primary);
       }
 
-      // Company Brand & Details (Left Column) and Invoice Meta Details (Right Column)
+      // Check if logo image exists
+      const logoX = template === 'modern' ? 62 : 50;
       const headerStartY = template === 'corporate' ? 52 : (template === 'modern' ? 48 : 50);
-      const leftX = template === 'modern' ? 62 : 50;
+      
+      const possibleLogoPaths = [
+        path.join(process.cwd(), 'client/public/logo.png'),
+        path.join(process.cwd(), '../client/public/logo.png'),
+        path.join(process.cwd(), 'public/logo.png'),
+      ];
+      const logoPath = possibleLogoPaths.find((p) => fs.existsSync(p));
+
+      let companyY = headerStartY;
+
+      if (logoPath) {
+        try {
+          doc.image(logoPath, logoX, headerStartY, { height: 32 });
+          companyY = headerStartY + 38;
+        } catch (imgErr) {
+          console.error('Failed to render logo in PDF:', imgErr);
+          doc.fillColor(template === 'modern' ? theme.primary : theme.text);
+          doc.font('Helvetica-Bold').fontSize(18).text(settings.name || 'Company Name', logoX, headerStartY, { width: 320 });
+          companyY = doc.y + 4;
+        }
+      } else {
+        doc.fillColor(template === 'modern' ? theme.primary : theme.text);
+        doc.font('Helvetica-Bold').fontSize(18).text(settings.name || 'Company Name', logoX, headerStartY, { width: 320 });
+        companyY = doc.y + 4;
+      }
+
+      const leftX = logoX;
       const rightX = 390;
       const colWidth = 320;
-
-      // Draw Left Column: Company Name
-      doc.fillColor(template === 'modern' ? theme.primary : theme.text);
-      doc.font('Helvetica-Bold').fontSize(18).text(settings.name || 'Company Name', leftX, headerStartY, { width: colWidth });
-      let companyY = doc.y + 4;
 
       // Draw Left Column: Company Details
       doc.font('Helvetica').fontSize(8.5).fillColor(theme.textMuted);
@@ -326,7 +350,7 @@ export const generateInvoicePDF = async (invoice, settings) => {
       currentY += 24;
 
       // 7. Footer details (Bank details, Notes, Signatures)
-      let footerY = Math.max(currentY + 20, 650);
+      let footerY = currentY + 30;
 
       if (footerY + 75 > 790) {
         doc.addPage();
@@ -365,10 +389,6 @@ export const generateInvoicePDF = async (invoice, settings) => {
 
       doc.strokeColor(theme.border).lineWidth(0.75).moveTo(sigX, footerY + 42).lineTo(545, footerY + 42).stroke();
       doc.font('Helvetica-Bold').fontSize(8).fillColor(theme.text).text('Authorized Signature', sigX, footerY + 47, { align: 'center', width: sigWidth });
-
-      if (settings.name) {
-        doc.font('Helvetica-Oblique').fontSize(8.5).fillColor(theme.primary).text(settings.name, sigX, footerY + 28, { align: 'center', width: sigWidth });
-      }
 
       doc.end();
     } catch (err) {

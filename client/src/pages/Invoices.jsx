@@ -12,7 +12,8 @@ import {
   Eye, 
   Calendar, 
   X,
-  FileText 
+  FileText,
+  Download
 } from 'lucide-react';
 import api from '../services/api.js';
 import ConfirmModal from '../components/ConfirmModal.jsx';
@@ -124,6 +125,36 @@ const Invoices = () => {
         }
       },
     });
+  };
+
+  const handleDownloadPDF = async (inv) => {
+    const toastId = toast.loading(`Generating PDF for ${inv.invoiceNumber}...`);
+    try {
+      const response = await api.get(`/invoices/${inv._id}/pdf`, {
+        responseType: 'blob',
+      });
+
+      if (response.data.type === 'application/json') {
+        const errorText = await response.data.text();
+        const jsonError = JSON.parse(errorText);
+        throw new Error(jsonError.message || 'Failed to generate PDF');
+      }
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeFilename = (inv.invoiceNumber || 'invoice').replace(/[^a-zA-Z0-9_-]/g, '_');
+      link.setAttribute('download', `${safeFilename}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+      toast.success('Invoice PDF downloaded!', { id: toastId });
+    } catch (err) {
+      console.error('PDF download error:', err);
+      toast.error(err.message || 'Failed to download invoice PDF', { id: toastId });
+    }
   };
 
   const handleDelete = (id) => {
@@ -334,6 +365,15 @@ const Invoices = () => {
                           title="View Invoice"
                         >
                           <Eye className="h-4 w-4" />
+                        </button>
+
+                        {/* Download PDF */}
+                        <button
+                          onClick={() => handleDownloadPDF(inv)}
+                          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                          title="Download PDF"
+                        >
+                          <Download className="h-4 w-4" />
                         </button>
                         
                         {/* Duplicate */}

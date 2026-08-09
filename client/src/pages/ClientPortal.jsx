@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Download, 
@@ -6,7 +7,6 @@ import {
   CreditCard, 
   CheckCircle, 
   FileText, 
-  WalletCards, 
   X,
   Phone,
   Mail,
@@ -14,8 +14,10 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import Logo from '../components/Logo.jsx';
 import { ClassicTemplate, ModernTemplate, CorporateTemplate, MinimalTemplate } from '../components/InvoiceTemplates.jsx';
 import { API_URL } from '../services/api.js';
+
 
 const ClientPortal = () => {
   const { token } = useParams();
@@ -71,14 +73,40 @@ const ClientPortal = () => {
     fetchPublicInvoice();
   }, [token]);
 
-  const handleDownloadPDF = () => {
-    const downloadUrl = `${API_URL}/api/invoices/${invoice._id}/pdf`;
-    const anchor = document.createElement('a');
-    anchor.href = downloadUrl;
-    anchor.download = `${invoice.invoiceNumber}.pdf`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    if (!invoice?._id || downloadingPDF) return;
+    setDownloadingPDF(true);
+    const toastId = toast.loading('Generating invoice PDF...');
+    try {
+      const response = await axios.get(`${API_URL}/api/invoices/${invoice._id}/pdf`, {
+        responseType: 'blob',
+      });
+
+      if (response.data.type === 'application/json') {
+        const errorText = await response.data.text();
+        const jsonError = JSON.parse(errorText);
+        throw new Error(jsonError.message || 'Failed to generate PDF');
+      }
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeFilename = (invoice?.invoiceNumber || 'invoice').replace(/[^a-zA-Z0-9_-]/g, '_');
+      link.setAttribute('download', `${safeFilename}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+      toast.success('Invoice PDF downloaded!', { id: toastId });
+    } catch (err) {
+      console.error('PDF download error:', err);
+      toast.error(err.message || 'Failed to download PDF', { id: toastId });
+    } finally {
+      setDownloadingPDF(false);
+    }
   };
 
   const handleSimulatePayment = async (e) => {
@@ -167,21 +195,21 @@ const ClientPortal = () => {
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200">
       {/* Top Banner Branding */}
       <nav className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200/50 bg-white/80 px-6 backdrop-blur-md dark:border-slate-900 dark:bg-slate-900/80">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <WalletCards className="h-5 w-5" />
-          </div>
-          <span className="font-outfit text-sm font-bold bg-gradient-to-r from-brand-600 to-indigo-600 bg-clip-text text-transparent dark:from-brand-400 dark:to-indigo-400">
-            Manshu Client Portal
+        <div className="flex items-center gap-3">
+          <Logo className="h-8" textClassName="text-lg font-black" />
+          <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+            Client Portal
           </span>
         </div>
+
 
         <div className="flex gap-2">
           <button
             onClick={handleDownloadPDF}
-            className="flex items-center gap-1 text-[11px] font-semibold border border-slate-200 bg-white rounded-xl px-3 py-1.5 dark:bg-slate-900 dark:border-slate-800 hover:bg-slate-50"
+            disabled={downloadingPDF}
+            className="flex items-center gap-1 text-[11px] font-semibold border border-slate-200 bg-white rounded-xl px-3 py-1.5 dark:bg-slate-900 dark:border-slate-800 hover:bg-slate-50 disabled:opacity-50"
           >
-            <Download className="h-3.5 w-3.5" /> PDF
+            <Download className="h-3.5 w-3.5" /> {downloadingPDF ? 'Downloading...' : 'PDF'}
           </button>
           
           <button
@@ -275,9 +303,9 @@ const ClientPortal = () => {
       </div>
 
       {/* Simulated Checkout Modal */}
-      {showPayModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4">
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900 z-50 animate-fade-in text-center space-y-5">
+      {showPayModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 text-center space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
               <h3 className="font-outfit text-sm font-bold text-slate-850 dark:text-slate-100">Simulate Checkout Portal</h3>
               <button 
@@ -357,7 +385,8 @@ const ClientPortal = () => {
               </form>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

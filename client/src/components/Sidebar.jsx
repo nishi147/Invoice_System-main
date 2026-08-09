@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logoutUser } from '../redux/authSlice.js';
+import Logo from './Logo.jsx';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -51,15 +52,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         {/* Sidebar Header */}
-        <div className="flex h-16 items-center justify-between border-b border-slate-200 px-6 dark:border-slate-800">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-lg shadow-brand-500/35">
-              <WalletCards className="h-5 w-5" />
-            </div>
-            <span className="font-outfit text-lg font-bold tracking-tight bg-gradient-to-r from-brand-600 to-indigo-600 bg-clip-text text-transparent dark:from-brand-400 dark:to-indigo-400">
-              Manshu Finance
-            </span>
-          </div>
+        <div className="flex h-16 items-center justify-between border-b border-slate-200 px-5 dark:border-slate-800">
+          <Logo className="h-9" textClassName="text-xl" />
           <button 
             onClick={toggleSidebar}
             className="rounded-lg p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 lg:hidden"
@@ -67,6 +61,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             <X className="h-5 w-5" />
           </button>
         </div>
+
 
         {/* Sidebar Links */}
         <nav className="flex-1 space-y-1 px-4 py-6 overflow-y-auto">

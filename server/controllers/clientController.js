@@ -157,7 +157,7 @@ export const updateClient = async (req, res) => {
   }
 };
 
-// @desc    Delete client (checks for invoices first)
+// @desc    Delete client (checks for invoices first, supports force delete with snapshot retention)
 // @route   DELETE /api/clients/:id
 // @access  Private (Super Admin, Accountant)
 export const deleteClient = async (req, res) => {
@@ -168,13 +168,21 @@ export const deleteClient = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Client not found' });
     }
 
+    const force = req.query.force === 'true';
+
     // Check if client has invoices
     const hasInvoices = await Invoice.exists({ client: client._id });
-    if (hasInvoices) {
+    if (hasInvoices && !force) {
       return res.status(400).json({
         success: false,
+        hasInvoices: true,
         message: 'Cannot delete client. This client is associated with existing invoices.',
       });
+    }
+
+    if (hasInvoices && force) {
+      // Unset client reference on existing invoices so historical invoices retain clientDetailsSnapshot without breaking
+      await Invoice.updateMany({ client: client._id }, { $unset: { client: '' } });
     }
 
     await Client.findByIdAndDelete(req.params.id);
@@ -184,7 +192,7 @@ export const deleteClient = async (req, res) => {
       userEmail: req.user.email,
       userName: req.user.name,
       action: 'CLIENT_DELETE',
-      details: `Deleted client: ${client.name}`,
+      details: `Deleted client: ${client.name}${force ? ' (force deleted with invoice snapshot retention)' : ''}`,
       ipAddress: req.ip,
     });
 

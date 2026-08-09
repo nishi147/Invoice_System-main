@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { registerUser, clearError } from '../redux/authSlice.js';
-import { User, Mail, Lock, WalletCards, AlertCircle, ShieldAlert } from 'lucide-react';
+import Logo from '../components/Logo.jsx';
+import { User, Mail, Lock, AlertCircle, ShieldAlert } from 'lucide-react';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -37,8 +38,8 @@ const Register = () => {
         
         {/* Logo and header */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg shadow-brand-500/30">
-            <WalletCards className="h-6 w-6" />
+          <div className="flex justify-center mb-4">
+            <Logo className="h-12" textClassName="text-3xl font-black" />
           </div>
           <h2 className="font-outfit text-2xl font-bold text-slate-800 dark:text-slate-100">
             Create account
@@ -47,6 +48,7 @@ const Register = () => {
             Sign up to manage company accounts & payments
           </p>
         </div>
+
 
         {error && (
           <div className="mb-6 flex items-start gap-3 rounded-xl bg-rose-50 p-4 text-sm text-rose-600 dark:bg-rose-950/20 dark:text-rose-400">

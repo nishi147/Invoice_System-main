@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
@@ -81,14 +82,40 @@ const InvoiceDetail = () => {
     fetchInvoiceData();
   }, [id]);
 
-  const handleDownloadPDF = () => {
-    const downloadUrl = `${API_URL}/api/invoices/${id}/pdf`;
-    const anchor = document.createElement('a');
-    anchor.href = downloadUrl;
-    anchor.download = `${invoice.invoiceNumber}.pdf`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    if (downloadingPDF) return;
+    setDownloadingPDF(true);
+    const toastId = toast.loading('Generating invoice PDF...');
+    try {
+      const response = await api.get(`/invoices/${id}/pdf`, {
+        responseType: 'blob',
+      });
+
+      if (response.data.type === 'application/json') {
+        const errorText = await response.data.text();
+        const jsonError = JSON.parse(errorText);
+        throw new Error(jsonError.message || 'Failed to generate PDF');
+      }
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeFilename = (invoice?.invoiceNumber || 'invoice').replace(/[^a-zA-Z0-9_-]/g, '_');
+      link.setAttribute('download', `${safeFilename}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+      toast.success('Invoice PDF downloaded!', { id: toastId });
+    } catch (err) {
+      console.error('PDF download error:', err);
+      toast.error(err.message || 'Failed to download invoice PDF', { id: toastId });
+    } finally {
+      setDownloadingPDF(false);
+    }
   };
 
   const handleSendEmail = async () => {
@@ -250,9 +277,10 @@ const InvoiceDetail = () => {
           {/* Download PDF */}
           <button
             onClick={handleDownloadPDF}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+            disabled={downloadingPDF}
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
           >
-            <Download className="h-4 w-4" /> PDF
+            <Download className="h-4 w-4" /> {downloadingPDF ? 'Downloading...' : 'PDF'}
           </button>
 
           {/* Print */}
@@ -354,10 +382,10 @@ const InvoiceDetail = () => {
       </div>
 
       {/* Record Payment Dialog Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900 animate-fade-in">
-            <h3 className="font-outfit text-base font-bold text-slate-800 dark:text-slate-100 mb-4">
+      {showPaymentModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+            <h3 className="font-outfit text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">
               Record Invoice Payment
             </h3>
             <form onSubmit={handleRecordPayment} className="space-y-4">
@@ -372,7 +400,7 @@ const InvoiceDetail = () => {
                   max={invoice.balanceDue}
                   value={payAmount}
                   onChange={(e) => setPayAmount(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 px-3 text-xs outline-none focus:border-brand-500 dark:border-slate-800"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white dark:bg-slate-800/60 dark:focus:bg-slate-900 py-2.5 px-3.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-800 transition-all"
                 />
               </div>
 
@@ -383,7 +411,7 @@ const InvoiceDetail = () => {
                 <select
                   value={payMode}
                   onChange={(e) => setPayMode(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 px-3 text-xs outline-none focus:border-brand-500 dark:border-slate-800"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white dark:bg-slate-800/60 dark:focus:bg-slate-900 py-2.5 px-3.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-800 transition-all"
                 >
                   <option value="UPI">UPI</option>
                   <option value="Bank Transfer">Bank Transfer</option>
@@ -403,7 +431,7 @@ const InvoiceDetail = () => {
                   placeholder="e.g. TXN9988223"
                   value={payTxId}
                   onChange={(e) => setPayTxId(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 px-3 text-xs outline-none focus:border-brand-500 dark:border-slate-800"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white dark:bg-slate-800/60 dark:focus:bg-slate-900 py-2.5 px-3.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-800 transition-all"
                 />
               </div>
 
@@ -416,7 +444,7 @@ const InvoiceDetail = () => {
                   placeholder="e.g. Received partial/full payment"
                   value={payNotes}
                   onChange={(e) => setPayNotes(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 px-3 text-xs outline-none focus:border-brand-500 dark:border-slate-800"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white dark:bg-slate-800/60 dark:focus:bg-slate-900 py-2.5 px-3.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-800 transition-all"
                 />
               </div>
 
@@ -424,20 +452,21 @@ const InvoiceDetail = () => {
                 <button
                   type="button"
                   onClick={() => setShowPaymentModal(false)}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-350 dark:hover:bg-slate-800"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700 hover:shadow-lg transition-all active:scale-[0.98]"
+                  className="rounded-xl bg-brand-600 px-5 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-md shadow-brand-500/20 hover:bg-brand-700 hover:shadow-lg transition-all active:scale-[0.98]"
                 >
                   Save Payment
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Confirmation Modal */}

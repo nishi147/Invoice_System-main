@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginUser, clearError } from '../redux/authSlice.js';
-import { Lock, Mail, WalletCards, AlertCircle } from 'lucide-react';
+import Logo from '../components/Logo.jsx';
+import { Lock, Mail, AlertCircle } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -37,8 +38,8 @@ const Login = () => {
         
         {/* Brand logo & header */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg shadow-brand-500/30">
-            <WalletCards className="h-6 w-6" />
+          <div className="flex justify-center mb-4">
+            <Logo className="h-12" textClassName="text-3xl font-black" />
           </div>
           <h2 className="font-outfit text-2xl font-bold text-slate-800 dark:text-slate-100">
             Welcome back
@@ -47,6 +48,7 @@ const Login = () => {
             Access your invoices & financial dashboard
           </p>
         </div>
+
 
         {/* Display backend error if any */}
         {error && (

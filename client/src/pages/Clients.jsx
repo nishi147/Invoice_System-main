@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
@@ -145,7 +146,7 @@ const Clients = () => {
     setConfirmConfig({
       isOpen: true,
       title: 'Delete Client',
-      message: 'Are you sure you want to delete this client?',
+      message: 'Are you sure you want to delete this client profile?',
       danger: true,
       confirmText: 'Delete',
       onConfirm: async () => {
@@ -156,7 +157,30 @@ const Clients = () => {
             fetchClients();
           }
         } catch (err) {
-          toast.error(err.response?.data?.message || 'Deletion failed');
+          if (err.response?.data?.hasInvoices) {
+            setTimeout(() => {
+              setConfirmConfig({
+                isOpen: true,
+                title: 'Client Has Active Invoices',
+                message: 'This client is associated with existing invoices. Force delete will remove the client profile while preserving all client details on existing invoices.',
+                danger: true,
+                confirmText: 'Force Delete Client',
+                onConfirm: async () => {
+                  try {
+                    const forceRes = await api.delete(`/clients/${id}?force=true`);
+                    if (forceRes.data.success) {
+                      toast.success('Client force deleted successfully!');
+                      fetchClients();
+                    }
+                  } catch (forceErr) {
+                    toast.error(forceErr.response?.data?.message || 'Force delete failed');
+                  }
+                },
+              });
+            }, 200);
+          } else {
+            toast.error(err.response?.data?.message || 'Deletion failed');
+          }
         }
       },
     });
@@ -328,160 +352,191 @@ const Clients = () => {
       </div>
 
       {/* Create / Edit Client Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm px-3 sm:px-4 py-4 sm:py-0 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900 z-50 animate-fade-in my-4 sm:my-0">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800 mb-4">
-              <h3 className="font-outfit text-base font-bold text-slate-850 dark:text-slate-100">
-                {editingClient ? 'Edit Client Profile' : 'Add New Client Contact'}
-              </h3>
+      {showModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4 md:p-6 overflow-y-auto animate-fade-in">
+          <div className="relative w-full max-w-lg sm:max-w-xl md:max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 overflow-hidden my-auto">
+            
+            {/* Sticky Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 sm:px-6 py-4 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
+              <div>
+                <h3 className="font-outfit text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
+                  {editingClient ? 'Edit Client Profile' : 'Add New Client Contact'}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Enter client contact information and billing address details below.
+                </p>
+              </div>
               <button 
                 onClick={() => setShowModal(false)}
-                className="rounded-lg p-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveClient} className="space-y-4 text-xs">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-slate-500 font-semibold mb-1.5">Contact Full Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. John Doe"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 px-3 outline-none focus:border-brand-500 dark:border-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-500 font-semibold mb-1.5">Company Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Acme Corp Inc"
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 px-3 outline-none focus:border-brand-500 dark:border-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-500 font-semibold mb-1.5">Email Address *</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="client@company.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 px-3 outline-none focus:border-brand-500 dark:border-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-500 font-semibold mb-1.5">Phone Number</label>
-                  <input
-                    type="text"
-                    placeholder="+91 98765 43210"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 px-3 outline-none focus:border-brand-500 dark:border-slate-800"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-slate-500 font-semibold mb-1.5">GST Registration Code</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 07AAAAA1111A1Z1"
-                    value={gst}
-                    onChange={(e) => setGst(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 px-3 outline-none focus:border-brand-500 dark:border-slate-800 font-mono"
-                  />
+            {/* Scrollable Form Body */}
+            <form id="client-form" onSubmit={handleSaveClient} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 text-xs sm:text-sm">
+              
+              {/* Contact Info Section */}
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">
+                  Primary Contact Info
+                </h4>
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5">
+                      Contact Full Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. John Doe"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white dark:bg-slate-800/60 dark:focus:bg-slate-900 py-2.5 px-3.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-800 transition-all text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5">
+                      Company Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Acme Corp Inc"
+                      value={company}
+                      onChange={(e) => setCompany(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white dark:bg-slate-800/60 dark:focus:bg-slate-900 py-2.5 px-3.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-800 transition-all text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5">
+                      Email Address <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="client@company.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white dark:bg-slate-800/60 dark:focus:bg-slate-900 py-2.5 px-3.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-800 transition-all text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="+91 98765 43210"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white dark:bg-slate-800/60 dark:focus:bg-slate-900 py-2.5 px-3.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-800 transition-all text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5">
+                      GST Registration Code
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 07AAAAA1111A1Z1"
+                      value={gst}
+                      onChange={(e) => setGst(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white dark:bg-slate-800/60 dark:focus:bg-slate-900 py-2.5 px-3.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-800 transition-all font-mono text-slate-900 dark:text-slate-100 uppercase"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Address sub-block */}
-              <div className="border-t border-slate-100 pt-4 dark:border-slate-800 space-y-3">
-                <span className="font-semibold text-slate-700 dark:text-slate-350 block uppercase tracking-wider text-[10px]">
-                  Billing Address Address
-                </span>
+              {/* Address Section */}
+              <div className="border-t border-slate-100 pt-5 dark:border-slate-800 space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  Billing Address
+                </h4>
                 
                 <div>
-                  <label className="block text-slate-500 mb-1.5">Street Details</label>
+                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5">
+                    Street Details
+                  </label>
                   <input
                     type="text"
                     placeholder="e.g. 456 Main St, Office Suite 3B"
                     value={street}
                     onChange={(e) => setStreet(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 px-3 outline-none focus:border-brand-500 dark:border-slate-800"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white dark:bg-slate-800/60 dark:focus:bg-slate-900 py-2.5 px-3.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-800 transition-all text-slate-900 dark:text-slate-100"
                   />
                 </div>
                 
-                <div className="grid gap-3 grid-cols-1 sm:grid-cols-4">
-                  <div className="sm:col-span-2">
-                    <label className="block text-slate-500 mb-1.5">City</label>
+                <div className="grid gap-3.5 grid-cols-1 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5">City</label>
                     <input
                       type="text"
                       placeholder="e.g. New Delhi"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 px-3 outline-none focus:border-brand-500 dark:border-slate-800"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white dark:bg-slate-800/60 dark:focus:bg-slate-900 py-2.5 px-3.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-800 transition-all text-slate-900 dark:text-slate-100"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-500 mb-1.5">State</label>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5">State</label>
                     <input
                       type="text"
-                      placeholder="Delhi"
+                      placeholder="e.g. Delhi"
                       value={state}
                       onChange={(e) => setState(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 px-2 outline-none focus:border-brand-500 dark:border-slate-800"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white dark:bg-slate-800/60 dark:focus:bg-slate-900 py-2.5 px-3.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-800 transition-all text-slate-900 dark:text-slate-100"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-500 mb-1.5">ZIP Code</label>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5">ZIP / Postal Code</label>
                     <input
                       type="text"
-                      placeholder="110001"
+                      placeholder="e.g. 110001"
                       value={zip}
                       onChange={(e) => setZip(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 px-2 outline-none focus:border-brand-500 dark:border-slate-800"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white dark:bg-slate-800/60 dark:focus:bg-slate-900 py-2.5 px-3.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-800 transition-all text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5">Country</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. India"
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white dark:bg-slate-800/60 dark:focus:bg-slate-900 py-2.5 px-3.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-800 transition-all text-slate-900 dark:text-slate-100"
                     />
                   </div>
                 </div>
-
-                <div>
-                  <label className="block text-slate-500 mb-1.5">Country</label>
-                  <input
-                    type="text"
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 px-3 outline-none focus:border-brand-500 dark:border-slate-800"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-850">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-650 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-350 dark:hover:bg-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-xl bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700 hover:shadow-lg transition-all active:scale-[0.98]"
-                >
-                  Save Profile
-                </button>
               </div>
             </form>
+
+            {/* Sticky Footer */}
+            <div className="flex items-center justify-end gap-3 px-5 sm:px-6 py-3.5 sm:py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="client-form"
+                className="rounded-xl bg-brand-600 px-5 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-md shadow-brand-500/20 hover:bg-brand-700 hover:shadow-lg transition-all active:scale-[0.98]"
+              >
+                {editingClient ? 'Update Profile' : 'Save Client'}
+              </button>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
 };
 
 export default Clients;
+
